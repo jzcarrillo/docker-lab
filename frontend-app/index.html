@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Itoy App</title>
+</head>
+<body>
+  <h1>Itoy App</h1>
+
+  <!-- Form to Add Note -->
+  <form id="noteForm">
+    <input type="text" id="title" placeholder="Title" required />
+    <input type="text" id="content" placeholder="Content" required />
+    <button type="submit">Add Note</button>
+  </form>
+
+  <!-- Button to refresh manually -->
+  <button onclick="fetchNotes()">Refresh Notes</button>
+
+  <!-- Display Results -->
+  <div id="result"></div>
+
+  <script>
+    async function fetchNotes() {
+      const resultElement = document.getElementById('result');
+      resultElement.innerHTML = 'Loading...';
+
+      try {
+        const res = await fetch('https://vigilant-space-guide-v65wvgjx5ppqcxxr-8081.app.github.dev/api/notes');
+        const data = await res.json();
+
+        const list = document.createElement('ul');
+        data.forEach(note => {
+          const item = document.createElement('li');
+          item.innerHTML = `<strong>${note.title}</strong>: ${note.content} 
+            <button onclick="deleteNote(${note.id})">Delete</button>`;
+          list.appendChild(item);
+        });
+
+        resultElement.innerHTML = '';
+        resultElement.appendChild(list);
+      } catch (err) {
+        resultElement.innerText = 'Error fetching notes';
+        console.error(err);
+      }
+    }
+
+    async function deleteNote(id) {
+      if (!confirm('Are you sure you want to delete this note?')) return;
+
+      try {
+        await fetch(`https://vigilant-space-guide-v65wvgjx5ppqcxxr-8081.app.github.dev/api/notes/${id}`, {
+          method: 'DELETE'
+        });
+        fetchNotes(); // refresh after delete
+      } catch (err) {
+        alert('Error deleting note');
+        console.error(err);
+      }
+    }
+
+    document.getElementById('noteForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const title = document.getElementById('title').value;
+      const content = document.getElementById('content').value;
+
+      try {
+        await fetch('https://vigilant-space-guide-v65wvgjx5ppqcxxr-8081.app.github.dev/api/notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, content })
+        });
+
+        this.reset();
+        fetchNotes();
+      } catch (err) {
+        alert('Error adding note');
+        console.error(err);
+      }
+    });
+
+    // Initial load
+    fetchNotes();
+  </script>
+</body>
+</html>
