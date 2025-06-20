@@ -53,6 +53,22 @@ app.delete('/api/notes/:id', async (req, res) => {
   }
 });
 
+// ✅ PUT /api/notes/:id - Update a note
+app.put('/api/notes/:id', async (req, res) => {
+  const { id } = req.params;
+  const { title, content } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE notes SET title = $1, content = $2 WHERE id = $3 RETURNING *',
+      [title, content, id]
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update Error:', err);
+    res.status(500).json({ error: 'Failed to update note' });
+  }
+});
 
 // Health check
 app.get('/', (req, res) => {
