@@ -3,7 +3,6 @@ const cors = require('cors');
 const { Pool } = require('pg');
 
 const app = express();
-// You can keep cors(), but gateway handles CORS; this is a fallback
 app.use(cors());
 app.use(express.json());
 
@@ -41,19 +40,19 @@ app.get('/api/notes', async (req, res) => {
   }
 });
 
-// ✅ DELETE /api/notes/:id
+// DELETE /api/notes/:id
 app.delete('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
   try {
     await pool.query('DELETE FROM notes WHERE id = $1', [id]);
-    res.status(204).send(); // No content
+    res.status(204).send();
   } catch (err) {
-    console.error('❌ Error deleting note:', err);
+    console.error('Error deleting note:', err);
     res.status(500).json({ error: 'Failed to delete note' });
   }
 });
 
-// ✅ PUT /api/notes/:id - Update a note
+// PUT /api/notes/:id
 app.put('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
@@ -67,6 +66,22 @@ app.put('/api/notes/:id', async (req, res) => {
   } catch (err) {
     console.error('Update Error:', err);
     res.status(500).json({ error: 'Failed to update note' });
+  }
+});
+
+// ✅ UPDATED: POST /process — used by lambda-consumer
+app.post('/process', async (req, res) => {
+  const { title, content } = req.body;
+  try {
+    const result = await pool.query(
+      'INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING *',
+      [title, content]
+    );
+    console.log('✅ Inserted via /process:', result.rows[0]);
+    res.status(200).send('Processed and inserted');
+  } catch (err) {
+    console.error('❌ Error in /process:', err);
+    res.status(500).json({ error: 'Failed to insert in /process' });
   }
 });
 

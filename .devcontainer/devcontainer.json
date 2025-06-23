@@ -1,0 +1,11 @@
+{
+  "name": "Multi-App POC",
+  "forwardPorts": [8081],
+  "portsAttributes": {
+    "8081": {
+      "label": "API Gateway",
+      "onAutoForward": "openBrowser",
+      "visibility": "public"
+    }
+  }
+}
