@@ -2,7 +2,7 @@ const express = require('express');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
-const FRONTEND = 'https://vigilant-space-guide-v65wvgjx5ppqcxxr-8080.app.github.dev';
+const FRONTEND = 'https://vigilant-space-guide-v65wvgjx5ppqcxxr-443.app.github.dev';
 
 // 1) CORS middleware
 app.use((req, res, next) => {

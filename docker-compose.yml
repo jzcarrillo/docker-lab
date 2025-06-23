@@ -14,8 +14,7 @@ services:
 
   frontend:
     build: ./frontend-app
-    ports:
-      - "8080:80"
+   # ports:
     depends_on:
       - api-gateway
     networks:
