@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
@@ -18,7 +19,14 @@ app.get('/', (req, res) => {
   res.send('✅ API Gateway is up. Use /api/notes and /submit');
 });
 
-// 3) Proxy /api/notes to backend
+// 3) Rate Limiting (20 req/min) — apply only to /submit route
+const submitLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 20,
+  message: '⚠️ Too many requests to /submit. Please wait a minute.',
+});
+
+// 4) Proxy /api/notes to backend (no rate limit)
 app.use(
   '/api/notes',
   createProxyMiddleware({
@@ -32,9 +40,10 @@ app.use(
   })
 );
 
-// 4) Proxy /submit to lambda-producer
+// 5) Proxy /submit to lambda-producer with rate limit
 app.use(
   '/submit',
+  submitLimiter, // 🛑 Limit only this route
   createProxyMiddleware({
     target: 'http://lambda-producer:8081',
     changeOrigin: true,
