@@ -7,14 +7,15 @@ app.use(express.json());
 const RABBITMQ_URL = 'amqp://user:pass@rabbitmq:5672';
 
 app.post('/submit', async (req, res) => {
-  const { title, content } = req.body;
+  const { id, title, content } = req.body; // ✅ Include id from frontend
   try {
     const conn = await amqp.connect(RABBITMQ_URL);
     const channel = await conn.createChannel();
     const queue = 'notes';
 
     await channel.assertQueue(queue, { durable: true });
-    const message = JSON.stringify({ title, content });
+
+    const message = JSON.stringify({ id, title, content }); // ✅ Include id in message
 
     channel.sendToQueue(queue, Buffer.from(message), { persistent: true });
 

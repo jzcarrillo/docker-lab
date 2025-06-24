@@ -55,11 +55,16 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     ports:
-      - "5672:5672"       # AMQP (for apps)
-      - "15672:15672"     # RabbitMQ Management UI
+      - "5672:5672"
+      - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: user
       RABBITMQ_DEFAULT_PASS: pass
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-net
 
@@ -75,10 +80,12 @@ services:
   lambda-consumer:
     build: ./lambda-consumer
     depends_on:
-      - rabbitmq
-      - backend
+      rabbitmq:
+        condition: service_healthy
+      backend:
+        condition: service_started
     networks:
-      - app-net
+      - app-net  
 
 volumes:
   pgdata:

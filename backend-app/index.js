@@ -14,7 +14,7 @@ const pool = new Pool({
   port: 5432,
 });
 
-// POST /api/notes
+// Create a new note
 app.post('/api/notes', async (req, res) => {
   try {
     const { title, content } = req.body;
@@ -29,7 +29,7 @@ app.post('/api/notes', async (req, res) => {
   }
 });
 
-// GET /api/notes
+// Get all notes
 app.get('/api/notes', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM notes ORDER BY id DESC');
@@ -40,7 +40,7 @@ app.get('/api/notes', async (req, res) => {
   }
 });
 
-// DELETE /api/notes/:id
+// Delete a note
 app.delete('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
   try {
@@ -52,7 +52,7 @@ app.delete('/api/notes/:id', async (req, res) => {
   }
 });
 
-// PUT /api/notes/:id
+// Update a note
 app.put('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
@@ -69,19 +69,42 @@ app.put('/api/notes/:id', async (req, res) => {
   }
 });
 
-// ✅ UPDATED: POST /process — used by lambda-consumer
+// ✅ Process queue message from Lambda Consumer
 app.post('/process', async (req, res) => {
-  const { title, content } = req.body;
+  const { id, title, content } = req.body;
+
+  if (!title || !content) {
+    return res.status(400).json({ error: 'Missing title or content' });
+  }
+
   try {
+    if (id) {
+      // Try to update if ID is present
+      const result = await pool.query(
+        'UPDATE notes SET title = $1, content = $2 WHERE id = $3 RETURNING *',
+        [title, content, id]
+      );
+
+      if (result.rowCount > 0) {
+        console.log('✏️ Updated via /process:', result.rows[0]);
+        return res.status(200).json({ message: 'Note updated' });
+      }
+
+      // If update did not affect any row, fallback to insert
+      console.log(`ℹ️ No note found with id ${id}, inserting new note...`);
+    }
+
+    // Insert if no ID or update failed
     const result = await pool.query(
       'INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING *',
       [title, content]
     );
-    console.log('✅ Inserted via /process:', result.rows[0]);
-    res.status(200).send('Processed and inserted');
+    console.log('🆕 Inserted via /process:', result.rows[0]);
+    res.status(201).json({ message: 'Note inserted' });
+
   } catch (err) {
     console.error('❌ Error in /process:', err);
-    res.status(500).json({ error: 'Failed to insert in /process' });
+    res.status(500).json({ error: 'Failed to process note' });
   }
 });
 

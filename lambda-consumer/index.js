@@ -16,8 +16,25 @@ async function connectWithRetry() {
           console.log('📨 Received from queue:', content);
 
           try {
-            const res = await axios.post('http://backend:3000/process', JSON.parse(content));
-            console.log('✅ Sent to backend, response status:', res.status);
+            const data = JSON.parse(content);
+            let response;
+
+            if (data.id) {
+              // 🔁 Update existing note
+              response = await axios.put(
+                `http://backend:3000/api/notes/${data.id}`,
+                { title: data.title, content: data.content }
+              );
+              console.log(`✅ Updated note ID ${data.id}, status:`, response.status);
+            } else {
+              // ➕ Insert new note
+              response = await axios.post(
+                'http://backend:3000/api/notes',
+                { title: data.title, content: data.content }
+              );
+              console.log('✅ Inserted new note, status:', response.status);
+            }
+
           } catch (err) {
             console.error('❌ Error forwarding to backend:', err.message);
           }
