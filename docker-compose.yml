@@ -1,4 +1,13 @@
+version: "3.8"
+
 services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - app-net
+
   alb:
     image: nginx:alpine
     ports:
@@ -14,7 +23,6 @@ services:
 
   frontend:
     build: ./frontend-app
-   # ports:
     depends_on:
       - api-gateway
     networks:
