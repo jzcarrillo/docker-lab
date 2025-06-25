@@ -29,7 +29,7 @@ app.post('/api/notes', async (req, res) => {
       'INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING *',
       [title, content]
     );
-    
+
     // ❌ Invalidate Redis cache
     await redis.del('notes:all');
 
@@ -170,6 +170,38 @@ app.post('/process', async (req, res) => {
   } catch (err) {
     console.error('❌ Error in /process:', err);
     res.status(500).json({ error: 'Failed to process note' });
+  }
+});
+
+// ✅ Redis Test: Set key-value
+app.post('/cache', async (req, res) => {
+  const { key, value } = req.body;
+  if (!key || !value) {
+    return res.status(400).json({ error: 'Missing key or value' });
+  }
+
+  try {
+    await redis.set(key, value, 'EX', 60); // store for 60 seconds
+    res.status(201).json({ message: `Key ${key} set`, ttl: 60 });
+  } catch (err) {
+    console.error('Error setting Redis key:', err);
+    res.status(500).json({ error: 'Failed to set Redis key' });
+  }
+});
+
+// ✅ Redis Test: Get key-value
+app.get('/cache/:key', async (req, res) => {
+  const { key } = req.params;
+
+  try {
+    const value = await redis.get(key);
+    if (value === null) {
+      return res.status(404).json({ error: `Key ${key} not found` });
+    }
+    res.json({ key, value });
+  } catch (err) {
+    console.error('Error getting Redis key:', err);
+    res.status(500).json({ error: 'Failed to get Redis key' });
   }
 });
 
