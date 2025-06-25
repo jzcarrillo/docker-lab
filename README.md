@@ -36,11 +36,11 @@ Docker + Docker Compose
 Ports 3000, 8081, 8010, 15672, etc. must be free
 
  Features
-🔁 Auto-invalidate cache on Create/Update/Delete
-🧪 Redis TTL caching for GETs
-📦 Background processing via RabbitMQ
-🛡️ Rate-limiting via express-rate-limit
-🔍 Real-time Redis inspection with RedisInsight
+- 🔁 Auto-invalidate cache on Create/Update/Delete
+- 🧪 Redis TTL caching for GETs
+- 📦 Background processing via RabbitMQ
+- 🛡️ Rate-limiting via express-rate-limit
+- 🔍 Real-time Redis inspection with RedisInsight
 
 ⚙️ How It Works
 - Users access the frontend via a secure Nginx reverse proxy (simulating ALB).
