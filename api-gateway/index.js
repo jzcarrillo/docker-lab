@@ -19,16 +19,23 @@ app.get('/', (req, res) => {
   res.send('✅ API Gateway is up. Use /api/notes and /submit');
 });
 
-// 3) Rate Limiting (20 req/min) — apply only to /submit route
+// 3) Rate Limiting
+const notesLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 20,
+  message: '⚠️ Too many requests to /api/notes. Please wait a minute.',
+});
+
 const submitLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 20,
   message: '⚠️ Too many requests to /submit. Please wait a minute.',
 });
 
-// 4) Proxy /api/notes to backend (no rate limit)
+// 4) Proxy /api/notes to backend WITH rate limit
 app.use(
   '/api/notes',
+  notesLimiter,
   createProxyMiddleware({
     target: 'http://backend:3000',
     changeOrigin: true,
@@ -40,10 +47,10 @@ app.use(
   })
 );
 
-// 5) Proxy /submit to lambda-producer with rate limit
+// 5) Proxy /submit to lambda-producer WITH rate limit
 app.use(
   '/submit',
-  submitLimiter, // 🛑 Limit only this route
+  submitLimiter,
   createProxyMiddleware({
     target: 'http://lambda-producer:8081',
     changeOrigin: true,
