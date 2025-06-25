@@ -1,83 +1,51 @@
-# 🧪 Multi-Component POC: Event-Driven Architecture with Rate-Limited API Gateway
+Multi-Component App with Redis, RabbitMQ, and API Gateway
 
-This project is a proof-of-concept (POC) demonstrating an event-driven, containerized microservices architecture using Docker. It simulates a production-like environment from frontend to database, with asynchronous communication through RabbitMQ and API throttling at the gateway level.
+🔧 Project Overview
+This project demonstrates a production-style multi-service architecture using Docker Compose. It features:
 
----
+- ✅ API Gateway with rate limiting
+- 🗃️ Redis cache for optimized GET requests
+- 📩 RabbitMQ message broker
+- 🔁 Lambda-style producers/consumers
+- 💾 PostgreSQL database for persistence
+- 🌐 RedisInsight UI for Redis monitoring
+- 🧩 Frontend with dynamic note-taking interface
+- 🔒 HTTPS enabled via Nginx reverse proxy (simulating ALB)
 
-## 📌 Architecture Overview
+🧱 Architecture
 
-ALB (HTTPS)
-⬇
-Frontend (HTML/JS)
-⬇
-API Gateway (Node.js + express-rate-limit)
-⬇
-Lambda Producer (Node.js)
-⬇
-RabbitMQ (Message Broker)
-⬇
-Lambda Consumer (Node.js)
-⬇
-Backend API (Express + PostgreSQL)
-⬇
-PostgreSQL (Database)
+![image](https://github.com/user-attachments/assets/6818708f-b35d-4bb6-b3b4-63b831cb64f1)
 
+| Service         | Port  | Description                                 |
+| --------------- | ----- | ------------------------------------------- |
+| ALB (Nginx)     | 443   | HTTPS reverse proxy                         |
+| Frontend        | —     | Static HTML/JS UI                           |
+| API Gateway     | 8081  | Express API + Rate Limit                    |
+| Backend API     | 3000  | Express REST API + PostgreSQL + Redis       |
+| PostgreSQL      | 5432  | Note storage DB                             |
+| Redis           | 6379  | Cache storage                               |
+| RedisInsight UI | 8010  | Redis GUI                                   |
+| RabbitMQ        | 5672  | Messaging broker                            |
+| RabbitMQ Admin  | 15672 | Web-based RabbitMQ management console       |
+| Lambda Producer | 3001  | Publishes messages to RabbitMQ              |
+| Lambda Consumer | —     | Subscribes to RabbitMQ and triggers backend |
 
----
+🛠️ Prerequisites
+Docker + Docker Compose
 
-## 🧱 Stack Components
+Ports 3000, 8081, 8010, 15672, etc. must be free
 
-| Layer            | Technology            | Description |
-|------------------|------------------------|-------------|
-| **Frontend**     | HTML + JavaScript      | Displays form and list of notes. Sends user input to `/submit`. |
-| **API Gateway**  | Node.js + Express + `http-proxy-middleware` + `express-rate-limit` | Forwards traffic to either `/submit` or `/api/notes`, with request throttling. |
-| **Lambda Producer** | Node.js + AMQP       | Pushes message to RabbitMQ queue from API Gateway. |
-| **RabbitMQ**     | RabbitMQ (Docker)      | Message broker for decoupling producer and consumer. |
-| **Lambda Consumer** | Node.js + AMQP + Axios | Pulls messages from the queue and calls the backend `/process` endpoint. |
-| **Backend**      | Node.js + Express + PostgreSQL | Provides REST API for notes and processes incoming messages. |
-| **Database**     | PostgreSQL             | Stores note records. |
+ Features
+🔁 Auto-invalidate cache on Create/Update/Delete
 
----
+🧪 Redis TTL caching for GETs
+📦 Background processing via RabbitMQ
+🛡️ Rate-limiting via express-rate-limit
+🔍 Real-time Redis inspection with RedisInsight
 
-## ✨ Features
-
-- ✅ **Create, Read, Update, Delete** (CRUD) notes
-- ✅ **Asynchronous messaging** with RabbitMQ
-- ✅ **Rate limiting**: Max 20 requests/minute to `/submit` route
-- ✅ **CORS-enabled API Gateway** for secure cross-origin requests
-- ✅ **Fully Dockerized**, runnable with `docker-compose`
-- ✅ **Health checks** for backend and gateway
-
----
-
-## 🚀 How It Works
-
-1. **User submits a note** via the frontend.
-2. **Frontend hits `/submit`** endpoint exposed by the API Gateway.
-3. **API Gateway forwards** the request to the Lambda Producer, applying rate limiting (20 req/min).
-4. **Lambda Producer sends the message** to RabbitMQ queue `notes`.
-5. **Lambda Consumer listens** to the queue, then forwards the message to the backend `/process` endpoint.
-6. **Backend saves** the note to PostgreSQL.
-7. **Frontend reloads** and fetches the updated list from `/api/notes`.
-
----
-
-![image](https://github.com/user-attachments/assets/54fb269f-f237-4d6e-b41d-3c445b3c8804)
-
-
-🔐 Security Notes
-- API Gateway uses CORS headers to restrict frontend origin.
-- Rate limiting prevents abuse of the /submit route.
-- Database accepts requests only from backend (internal network).
-
-🧠 Future Improvements
-- Add authentication using Amazon Cognito or Auth0
-- Use TLS for RabbitMQ and backend APIs
-- Container orchestration with Kubernetes or ECS
-- Observability via Prometheus + Grafana
-
-🧑‍💻 Author
-Created by John Christopher M. Carrillo as part of a hands-on POC for modern distributed system design using Node.js, Docker, and RabbitMQ.
-
+📌 Notes
+- Messages from lambda-producer go through RabbitMQ and are handled by lambda-consumer, triggering POST /process.
+- RedisInsight is auto-connected to your Redis container.
+- PostgreSQL data is stored in the pgdata volume.
 
 
