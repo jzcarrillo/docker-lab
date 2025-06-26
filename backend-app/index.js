@@ -4,7 +4,9 @@ const { Pool } = require('pg');
 const Redis = require('ioredis');
 const rateLimit = require('express-rate-limit');
 
-const app = express();
+const app = express(); // ✅ Define app first
+app.set('trust proxy', true); // ✅ Then set trust proxy
+
 app.use(cors());
 app.use(express.json());
 
@@ -16,13 +18,11 @@ const pool = new Pool({
   port: 5432,
 });
 
-// 🔌 Initialize Redis
 const redis = new Redis({
   host: 'redis',
   port: 6379
 });
 
-// ✅ Rate Limiting
 const notesRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 20,
@@ -34,7 +34,6 @@ const notesRateLimiter = rateLimit({
 
 app.use('/api/notes', notesRateLimiter);
 
-// ✅ Create Note
 app.post('/api/notes', async (req, res) => {
   try {
     const { title, content } = req.body;
@@ -50,7 +49,6 @@ app.post('/api/notes', async (req, res) => {
   }
 });
 
-// ✅ Get All Notes
 app.get('/api/notes', async (req, res) => {
   try {
     const cacheKey = 'notes:all';
@@ -72,7 +70,6 @@ app.get('/api/notes', async (req, res) => {
   }
 });
 
-// ✅ Delete Note
 app.delete('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -92,7 +89,6 @@ app.delete('/api/notes/:id', async (req, res) => {
   }
 });
 
-// ✅ Update Note
 app.put('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
@@ -116,7 +112,6 @@ app.put('/api/notes/:id', async (req, res) => {
   }
 });
 
-// ✅ Process from RabbitMQ
 app.post('/process', async (req, res) => {
   const { id, title, content } = req.body;
 
@@ -156,12 +151,10 @@ app.post('/process', async (req, res) => {
   }
 });
 
-// ✅ Health Check
 app.get('/', (req, res) => {
   res.send('✅ Backend is up and running');
 });
 
-// ✅ Start Server
 app.listen(3000, '0.0.0.0', () => {
   console.log('✅ Backend server running on port 3000');
 });

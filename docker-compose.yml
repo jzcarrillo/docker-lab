@@ -22,7 +22,7 @@ services:
     image: nginx:alpine
     ports:
       - "443:443"
-      - "80:80"  # Optional, for redirect
+      - "80:80"
     volumes:
       - ./alb/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./alb/certs:/etc/nginx/certs:ro
@@ -37,6 +37,11 @@ services:
       - api-gateway
     networks:
       - app-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   api-gateway:
     build: ./api-gateway
@@ -47,6 +52,11 @@ services:
       - lambda-producer
     networks:
       - app-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   backend:
     build: ./backend-app
@@ -56,6 +66,11 @@ services:
       - db
     networks:
       - app-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   db:
     image: postgres:14
@@ -94,6 +109,11 @@ services:
       - rabbitmq
     networks:
       - app-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   lambda-consumer:
     build: ./lambda-consumer
@@ -103,10 +123,67 @@ services:
       backend:
         condition: service_started
     networks:
-      - app-net  
+      - app-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - app-net
+
+  loki:
+    container_name: loki
+    image: grafana/loki:2.9.4
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/config.yml
+      - loki_data:/loki
+    networks:
+      - app-net
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./monitoring/grafana-provisioning:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - app-net
+
+  promtail:
+    container_name: promtail
+    image: grafana/promtail:2.9.4
+    ports:
+      - "9080:9080"  # Optional: expose for health check
+    volumes:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./monitoring/promtail-config.yml:/etc/promtail/promtail-config.yml
+    command: -config.file=/etc/promtail/promtail-config.yml
+    networks:
+      - app-net
+    depends_on:
+      - loki
 
 volumes:
   pgdata:
+  loki_data:
 
 networks:
   app-net:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-app-net
