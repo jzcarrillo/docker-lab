@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <title>Multi-Container App (POC)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+  </style>
 </head>
 <body>
   <h1>📝 Multi-Container App (POC)</h1>
@@ -25,6 +31,12 @@
 
       try {
         const res = await fetch('https://vigilant-space-guide-v65wvgjx5ppqcxxr-443.app.github.dev/api/notes');
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status}: ${text}`);
+        }
+
         const data = await res.json();
 
         data.forEach(note => {
@@ -38,7 +50,7 @@
         });
       } catch (err) {
         console.error(err);
-        resultElement.innerText = '❌ Error loading notes.';
+        resultElement.innerText = `❌ Error loading notes: ${err.message}`;
       }
     }
 

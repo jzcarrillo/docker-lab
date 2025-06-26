@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
-const Redis = require('ioredis'); // 🔌 Add Redis
+const Redis = require('ioredis');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(cors());
@@ -21,7 +22,19 @@ const redis = new Redis({
   port: 6379
 });
 
-// Create a new note
+// ✅ Rate Limiting
+const notesRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  message: {
+    status: 429,
+    error: "Too many requests. Please try again later."
+  }
+});
+
+app.use('/api/notes', notesRateLimiter);
+
+// ✅ Create Note
 app.post('/api/notes', async (req, res) => {
   try {
     const { title, content } = req.body;
@@ -29,10 +42,7 @@ app.post('/api/notes', async (req, res) => {
       'INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING *',
       [title, content]
     );
-
-    // ❌ Invalidate Redis cache
     await redis.del('notes:all');
-
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Error inserting note:', err);
@@ -40,7 +50,7 @@ app.post('/api/notes', async (req, res) => {
   }
 });
 
-// Get all notes with Redis caching
+// ✅ Get All Notes
 app.get('/api/notes', async (req, res) => {
   try {
     const cacheKey = 'notes:all';
@@ -52,8 +62,6 @@ app.get('/api/notes', async (req, res) => {
     }
 
     const result = await pool.query('SELECT * FROM notes ORDER BY id DESC');
-
-    // 💾 Cache in Redis (TTL: 60 seconds)
     await redis.set(cacheKey, JSON.stringify(result.rows), 'EX', 60);
 
     console.log('💾 Returned from DB and cached');
@@ -64,53 +72,27 @@ app.get('/api/notes', async (req, res) => {
   }
 });
 
-// Get a single note by ID with Redis cache
-app.get('/api/notes/:id', async (req, res) => {
+// ✅ Delete Note
+app.delete('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
 
   try {
-    const cacheKey = `note:${id}`;
-    const cached = await redis.get(cacheKey);
+    const result = await pool.query('DELETE FROM notes WHERE id = $1 RETURNING *', [id]);
 
-    if (cached) {
-      console.log(`📦 Cache hit for note ${id}`);
-      return res.json(JSON.parse(cached));
-    }
-
-    const result = await pool.query('SELECT * FROM notes WHERE id = $1', [id]);
-    const note = result.rows[0];
-
-    if (!note) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Note not found' });
     }
 
-    await redis.set(cacheKey, JSON.stringify(note), 'EX', 60); // cache for 60s
-    console.log(`💾 Cache set for note ${id}`);
-    res.json(note);
-  } catch (err) {
-    console.error(`❌ Error fetching note ${id}:`, err);
-    res.status(500).json({ error: 'Failed to fetch note' });
-  }
-});
-
-// Delete a note
-app.delete('/api/notes/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    await pool.query('DELETE FROM notes WHERE id = $1', [id]);
-
-    // ❌ Invalidate Redis cache
     await redis.del('notes:all');
     await redis.del(`note:${id}`);
-
-    res.status(204).send();
+    res.status(200).json({ message: 'Note deleted' });
   } catch (err) {
     console.error('Error deleting note:', err);
     res.status(500).json({ error: 'Failed to delete note' });
   }
 });
 
-// Update a note
+// ✅ Update Note
 app.put('/api/notes/:id', async (req, res) => {
   const { id } = req.params;
   const { title, content } = req.body;
@@ -121,18 +103,20 @@ app.put('/api/notes/:id', async (req, res) => {
       [title, content, id]
     );
 
-    // ❌ Invalidate Redis cache
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Note not found' });
+    }
+
     await redis.del('notes:all');
     await redis.del(`note:${id}`);
-
-    res.json(result.rows[0]);
+    res.status(200).json(result.rows[0]);
   } catch (err) {
-    console.error('Update Error:', err);
+    console.error('Error updating note:', err);
     res.status(500).json({ error: 'Failed to update note' });
   }
 });
 
-// ✅ Process queue message from Lambda Consumer
+// ✅ Process from RabbitMQ
 app.post('/process', async (req, res) => {
   const { id, title, content } = req.body;
 
@@ -163,7 +147,6 @@ app.post('/process', async (req, res) => {
     );
 
     await redis.del('notes:all');
-
     console.log('🆕 Inserted via /process:', result.rows[0]);
     res.status(201).json({ message: 'Note inserted' });
 
@@ -173,43 +156,12 @@ app.post('/process', async (req, res) => {
   }
 });
 
-// ✅ Redis Test: Set key-value
-app.post('/cache', async (req, res) => {
-  const { key, value } = req.body;
-  if (!key || !value) {
-    return res.status(400).json({ error: 'Missing key or value' });
-  }
-
-  try {
-    await redis.set(key, value, 'EX', 60); // store for 60 seconds
-    res.status(201).json({ message: `Key ${key} set`, ttl: 60 });
-  } catch (err) {
-    console.error('Error setting Redis key:', err);
-    res.status(500).json({ error: 'Failed to set Redis key' });
-  }
-});
-
-// ✅ Redis Test: Get key-value
-app.get('/cache/:key', async (req, res) => {
-  const { key } = req.params;
-
-  try {
-    const value = await redis.get(key);
-    if (value === null) {
-      return res.status(404).json({ error: `Key ${key} not found` });
-    }
-    res.json({ key, value });
-  } catch (err) {
-    console.error('Error getting Redis key:', err);
-    res.status(500).json({ error: 'Failed to get Redis key' });
-  }
-});
-
-// Health check
+// ✅ Health Check
 app.get('/', (req, res) => {
-  res.send('✅ Backend is up');
+  res.send('✅ Backend is up and running');
 });
 
-app.listen(3000, () => {
+// ✅ Start Server
+app.listen(3000, '0.0.0.0', () => {
   console.log('✅ Backend server running on port 3000');
 });

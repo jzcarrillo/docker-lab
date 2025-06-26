@@ -89,7 +89,7 @@ services:
   lambda-producer:
     build: ./lambda-producer
     ports:
-      - "3001:8081"
+      - "3010:8081"
     depends_on:
       - rabbitmq
     networks:
