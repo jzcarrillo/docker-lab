@@ -4,6 +4,11 @@ const { Pool } = require('pg');
 const Redis = require('ioredis');
 const rateLimit = require('express-rate-limit');
 
+// ✅ Prometheus metrics
+const client = require('prom-client');
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics(); // Enables default metrics
+
 const app = express(); // ✅ Define app first
 app.set('trust proxy', true); // ✅ Then set trust proxy
 
@@ -33,6 +38,12 @@ const notesRateLimiter = rateLimit({
 });
 
 app.use('/api/notes', notesRateLimiter);
+
+// ✅ Prometheus /metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
 
 app.post('/api/notes', async (req, res) => {
   try {

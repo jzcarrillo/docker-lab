@@ -2,6 +2,11 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
+// ✅ Prometheus setup
+const client = require('prom-client');
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics(); // Collect system + Node.js metrics
+
 const app = express();
 const FRONTEND = 'https://vigilant-space-guide-v65wvgjx5ppqcxxr-443.app.github.dev';
 
@@ -19,20 +24,26 @@ app.get('/', (req, res) => {
   res.send('✅ API Gateway is up. Use /api/notes and /submit');
 });
 
+// ✅ Prometheus /metrics endpoint
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
+
 // 3) Rate Limiting
 const notesLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
+  windowMs: 1 * 60 * 1000,
   max: 20,
   message: '⚠️ Too many requests to /api/notes. Please wait a minute.',
 });
 
 const submitLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
+  windowMs: 1 * 60 * 1000,
   max: 20,
   message: '⚠️ Too many requests to /submit. Please wait a minute.',
 });
 
-// 4) Proxy /api/notes to backend WITH rate limit
+// 4) Proxy /api/notes to backend
 app.use(
   '/api/notes',
   notesLimiter,
@@ -47,7 +58,7 @@ app.use(
   })
 );
 
-// 5) Proxy /submit to lambda-producer WITH rate limit
+// 5) Proxy /submit to lambda-producer
 app.use(
   '/submit',
   submitLimiter,
@@ -62,6 +73,7 @@ app.use(
   })
 );
 
+// ✅ Start the server
 app.listen(8081, () => {
   console.log('✅ API Gateway running on port 8081');
 });
