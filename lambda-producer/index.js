@@ -1,3 +1,5 @@
+require('./tracing');
+
 const express = require('express');
 const amqp = require('amqplib');
 const client = require('prom-client');
@@ -5,11 +7,35 @@ const client = require('prom-client');
 const collectDefaultMetrics = client.collectDefaultMetrics;
 collectDefaultMetrics(); // Enables default system & Node.js metrics
 
+// === Logging Setup ===
+let logs = [];
+
+// Preserve original console methods to avoid recursion
+const originalLog = console.log;
+const originalInfo = console.info;
+const originalError = console.error;
+
+const customLogger = (msg) => {
+  const entry = `${new Date().toISOString()} - ${msg}`;
+  logs.push(entry);
+  if (logs.length > 1000) logs.shift(); // keep log size manageable
+  originalLog(entry); // Use preserved original console.log
+};
+
+console.log = customLogger;
+console.info = customLogger;
+console.error = (msg) => {
+  const entry = `${new Date().toISOString()} - ERROR: ${msg}`;
+  logs.push(entry);
+  if (logs.length > 1000) logs.shift();
+  originalError(entry); // Use preserved original console.error
+};
+
 const app = express();
-app.set('trust proxy', true); // ✅ To support proper IP detection if behind reverse proxy
+app.set('trust proxy', true);
 app.use(express.json());
 
-// ✅ CORS middleware (match with frontend domain)
+// ✅ CORS middleware
 const FRONTEND = 'https://vigilant-space-guide-v65wvgjx5ppqcxxr-443.app.github.dev';
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', FRONTEND);
@@ -32,6 +58,12 @@ app.get('/', (req, res) => {
   res.send('🚀 Lambda Producer is healthy');
 });
 
+// ✅ Logs route
+app.get('/logs', (req, res) => {
+  res.set('Content-Type', 'text/plain');
+  res.send(logs.slice(-100).join('\n')); // show last 100 logs
+});
+
 app.post('/submit', async (req, res) => {
   const { id, title, content } = req.body;
 
@@ -51,7 +83,7 @@ app.post('/submit', async (req, res) => {
 
     res.status(200).send('Message queued successfully');
   } catch (err) {
-    console.error('❌ Failed to send to queue', err);
+    console.error(`❌ Failed to send to queue: ${err.message}`);
     res.status(500).send('Queue error');
   }
 });
