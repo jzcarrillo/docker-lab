@@ -1,0 +1,13 @@
+{
+  "name": "rabbitmq-logger",
+  "version": "1.0.0",
+  "description": "Logger service that reads from RabbitMQ and writes to file",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "express": "^4.18.2"
+  }
+}
