@@ -1,3 +1,5 @@
+require('./tracing'); 
+
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { createProxyMiddleware } = require('http-proxy-middleware');

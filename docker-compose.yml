@@ -178,6 +178,17 @@ services:
     depends_on:
       - loki
 
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./monitoring/otel-collector-config.yml:/etc/otel-collector-config.yml
+    ports:
+      - "4318:4318"
+    networks:
+      - app-net
+
 volumes:
   pgdata:
   loki_data:
