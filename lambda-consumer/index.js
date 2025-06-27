@@ -1,43 +1,73 @@
+require('./tracing');
+
 const amqp = require('amqplib');
 const axios = require('axios');
 const express = require('express');
 const client = require('prom-client');
 
+// === Prometheus Setup ===
 const collectDefaultMetrics = client.collectDefaultMetrics;
-collectDefaultMetrics(); // Enable default system & Node.js metrics
+collectDefaultMetrics();
 
-// ✅ Custom metric: Count processed messages
 const messagesProcessed = new client.Counter({
   name: 'rabbitmq_messages_processed_total',
   help: 'Total number of messages processed by the consumer',
 });
 
-const app = express();
-app.set('trust proxy', true); // ✅ Support accurate IP if needed
+// === Logging Setup ===
+let logs = [];
+const rawConsoleLog = console.log;
+const rawConsoleError = console.error;
+const rawConsoleInfo = console.info;
 
-// ✅ Optional CORS headers (not strictly needed but useful for monitoring)
+function customLogger(msg) {
+  const entry = `${new Date().toISOString()} - ${msg}`;
+  logs.push(entry);
+  if (logs.length > 1000) logs.shift();
+  rawConsoleLog(entry); // Avoid recursion
+}
+
+function customErrorLogger(msg) {
+  const entry = `${new Date().toISOString()} - ERROR: ${msg}`;
+  logs.push(entry);
+  if (logs.length > 1000) logs.shift();
+  rawConsoleError(entry); // Avoid recursion
+}
+
+console.log = customLogger;
+console.info = customLogger;
+console.error = customErrorLogger;
+
+// === Express App ===
+const app = express();
+app.set('trust proxy', true);
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*'); // Or your frontend origin
+  res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
   next();
 });
 
-// ✅ Health check
 app.get('/', (req, res) => {
   res.send('🧪 Lambda Consumer is alive');
 });
 
-// ✅ Prometheus metrics endpoint
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', client.register.contentType);
   res.end(await client.register.metrics());
+});
+
+app.get('/logs', (req, res) => {
+  res.set('Content-Type', 'text/plain');
+  res.send(logs.slice(-100).join('\n'));
 });
 
 app.listen(8080, () => {
   console.log('📊 Lambda Consumer metrics server running on port 8080');
 });
 
+// === RabbitMQ Consumption ===
 async function connectWithRetry() {
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
@@ -52,7 +82,7 @@ async function connectWithRetry() {
         if (msg !== null) {
           const content = msg.content.toString();
           console.log('📨 Received from queue:', content);
-          messagesProcessed.inc(); // ✅ Increment counter
+          messagesProcessed.inc();
 
           try {
             const data = JSON.parse(content);

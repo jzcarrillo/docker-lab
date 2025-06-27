@@ -122,6 +122,8 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+    ports:
+      - "3020:8080"
     networks:
       - app-net
     logging:
