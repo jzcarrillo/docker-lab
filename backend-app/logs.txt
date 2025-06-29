@@ -1,0 +1,11 @@
+[2025-06-29T11:41:30.087Z] [BACKEND] ✅ Backend server running on port 3000
+[2025-06-29T11:43:12.659Z] [BACKEND] 💾 Returned notes from DB and cached
+[2025-06-29T11:43:20.172Z] [BACKEND] Inserted note via POST /api/notes
+[2025-06-29T11:43:21.467Z] [BACKEND] 💾 Returned notes from DB and cached
+[2025-06-29T11:43:28.159Z] [BACKEND] Pinged root route
+[2025-06-29T11:44:49.061Z] [BACKEND] 💾 Returned notes from DB and cached
+[2025-06-29T11:49:50.822Z] [BACKEND] ✅ Backend server running on port 3000
+[2025-06-29T11:50:24.419Z] [BACKEND] Pinged root route
+[2025-06-29T11:50:46.904Z] [BACKEND] Inserted note via POST /api/notes
+[2025-06-29T11:50:48.329Z] [BACKEND] 💾 Returned notes from DB and cached
+[2025-06-29T11:51:12.345Z] [BACKEND] 📦 Returned notes from Redis cache

@@ -66,6 +66,8 @@ services:
       - db
     networks:
       - app-net
+    volumes:
+      - ./backend-app/logs.txt:/app/logs.txt  # 🔥 Persist logs.txt outside container
     logging:
       driver: "json-file"
       options:
